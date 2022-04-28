@@ -1,0 +1,790 @@
+openapi: 3.0.1
+info:
+  title: Tic:Toc Product API
+  x-logo:
+    url: "https://tictoc.ai/img/tictoc_ent_logo.svg"
+    backgroundColor: "#000747"
+    altText: "tic:toc Enterprise logo"
+  description:   >-
+
+    [Tic:Toc Enterprise](https://tictoc.ai) provides our platform partners with an easy way to access your product information. This can be used to drive customer experiences in your acquisition funnel, through access to accurate and timely product data.
+      
+    To get access to this API please contact your [account manager](mailto:enterprise@tictoc.ai).
+      
+    ## Getting Started  
+    
+    Integrating the Product API is easy. You'll need the following:
+      - your test API client credentials. These will be provided to you by Tic:Toc, and must be stored securely, 
+      - start developing using our test environment. This will allow you to get familiar with the request and response models through this documentation or embedded in your own customer experiences, 
+      - your production API client credentials. These will be provided to you by Tic:Toc, and must be stored securely,
+      - go live!
+      
+    
+    ## The API Orchestration
+    
+    To get API is structured as follows:
+      - authenticate: first you must get a [`token`](#/token) to allow all calls to be authenticated
+      - get a list of product: get a list of product codes using optional filters from [`/product/rate/getlist`](#/product/rate/getlist). All calls must include a [`token`](#/token) and the `x-api-key` header.
+      - get product details: once you have your target product codes, then call the [`/product/rate/get`](#/product/rate/get) endpoint to get detailed product information such as rates, periods, repayment types and fees. All calls must include a [`token`](#/token) and the `x-api-key` header.
+       
+    You can also download a [Postman Collection](https://github.com/TicTocHomeLoans/XAIValidateApiPublic/raw/main/XAI%20Validate%20API%20Collection.postman_collection.json) to help you interact with the Product API.
+      
+
+  contact:
+    name: Tic:Toc Enterprise
+    url: https://tictoc.ai/
+    email: enterprise@tictoc.ai
+  version: 1.0.0
+servers:
+- url: https://api.stage.tictoc.ai/public/v1.0/product/
+  description: Test server
+- url: https://api.tictoc.ai/public/v1.0/product/
+  description: Production server
+paths:
+  /token:
+    post:
+      tags:
+      - Authentication
+      summary: Retrieve OAuth2 token using client credentials.
+      servers:
+      - url: https://auth.stage.tictoc.ai/oauth2
+        description: Test authorisation server
+      - url: https://auth.tictoc.ai/oauth2
+        description: Production authorisation server
+      description: >-
+        Before you can call the XAI Validate endpoints, you need to authenticate via the `/token` API. Successful authentication will return a token that can then be used to authorise your access to functional APIs. You'll need to include this token in the `Authorization` header in your calls.
+          
+        The `/token` API URL includes values in the query path. The URL will look like this:        
+          `https://{host}/oauth2/token?grant_type=client_credentials`
+
+        The `host` value will either be `auth.tictoc.ai` for production or `auth.stage.tictoc.ai` for testing.
+
+        You'll also need to include information in your headers:
+          - `Authorization`: Base64 encoded `client_id` and `client_secret` provided to you by the XAI Validate team as part of onboarding. The format is: `"Basic {client_id}:{client_secret}"`
+          - `Content-Type`: the value is `"application/x-www-form-urlencoded"`
+
+        **Remember, your API credentials must be kept safe and secure. Do not share these or publish to publicly accessible locations such as your client-side code or GitHub.**
+        
+      operationId: getToken
+      security:
+        - tokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  example: client_credentials
+              required:
+                - grant_type
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetToken'
+        400:
+          description: Invalid client credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetToken400'
+        401:
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetToken401'
+        403:
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+        422:
+          description: Unable to create token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+  /product/rate/getlist:
+    post:
+      tags:
+      - Rate
+      summary: Get a list of product rates based on set of filters.
+      description:  >-
+        This endpoint allows you to retrieve a list of product rates including their identifying `product code`. The identifier can then be used to get rate details via the [`/product/rate/get`](#/product/rate/get).
+          
+        You can provide the following optional filters. If filters are not defined it will return all the available product rates:  
+          - `ProductCodes`: product group code described as `[ClientCode]_[LenderCode]_[UsageType]` - default is all
+          - `LenderCode`: relevant to clients with multiple lenders - default is all
+          - `RateType`": see table below for enumerations - default is all
+          - `RepaymentType`: see table below for enumerations - default is all
+          - `UsageType`: see table below for enumerations - default is all
+          - `LoanAmountMin`: the minimum loan amount applicable to the product. The default is `0`  
+          - `LoanAmountMax`: the maximum loan amount applicable to the product. The default is `999,999,999`  
+          - `LvrMin`: the minimum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `0.0`  
+          - `LvrMax`: the maximum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `1.0`  
+          - `IsActive`: a boolean value indicating whether the product is still on offer. The default is `all`  
+          - `HasOffset`: a boolean value indicating whether the product can have an offset account attached. The default is `false`  
+          - `IsRollTo`: a boolean value indicating whether the product rate is a rate that customers move to after a fixed or interest only period
+          - `ContextAt`: a `date-time` value to query active rates. The default is current Australian Eastern Standard Time.  
+                      
+
+        The response will give echo the filters applied in your request and a full list of product codes. The product codes use naming convention
+          > `[ClientCode]_[LenderCode]_[UsageType]_[RateType]_[RateTerm]_[RepaymentType]`.
+          
+        The enumerations for requests and responses are as follows:
+         - `ClientCode`: code provided to you during onboarding
+         - `LenderCode`: code provided to you during onboarding
+         - `UsageType`: see table below
+         - `RateType`: see table below
+         - `RateTerm`: an integer representing a rate term in years
+         - `RepaymentType`: see table below
+
+          
+        The `RateType` is defined as per the table below: 
+        
+          | `RateType` | Description |
+          |-----|-----|
+          | `VAR` | Variable |
+          | `FIX` | Fixed |
+          | `SPL` | Split |
+          
+        The `RepaymentType` is defined as per the table below: 
+        
+          | `RepaymentType` | Description |
+          |-----|-----|
+          | `IO` | Interest Only |
+          | `LOC` | Line of Credit |
+          | `NONE` | None |
+          | `PI` | Principal and Interest |
+          
+        The `UsageType` is defined as per the table below: 
+        
+          | `UsageType` | Description |
+          |-----|-----|
+          | `PRI` | Owner occupier |
+          | `INV` | Investment |
+            
+      operationId: getProductRateList
+      parameters:
+        - in: header
+          name: x-api-key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        description: The JSON request body for the POST.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestGetListProductRate'
+        required: true
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetListProductRate'
+        401:
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+        422:
+          description: Unable to retrieve rates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+      x-codegen-request-body-name: RequestBody
+  /product/rate/get:
+    post:
+      tags:
+      - Rate
+      summary: Get information about product rate by its unique identifier.
+      description:  >-
+        This endpoint allows you to retrieve detailed product infiormation by a set of filters. This includes the `product code`, which can be retrieved from the [`/product/rate/getlist`](#/product/rate/getlist) endpoint.
+          
+        You can provide the following optional filters. If filters are not defined it will return all the available product rates:  
+          - `ProductRateCodes`: a list of specific product rate codes returned from [`/product/rate/getlist`](#/product/rate/getlist). Default is all.
+          - `LoanAmountMin`: the minimum loan amount applicable to the product. The default is `0`  
+          - `LoanAmountMax`: the maximum loan amount applicable to the product. The default is `999,999,999`  
+          - `LvrMin`: the minimum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `0.0`  
+          - `LvrMax`: the maximum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `1.0`  
+          - `HasOffset`: a boolean value indicating whether the product can have an offset account attached. The default is `false`  
+          - `IsRollTo`: a boolean value indicating whether the product rate is a rate that customers move to after a fixed or interest only period
+          - `ContextAt`: a `date-time` value to query active rates. The default is current Australian Eastern Standard Time
+          - `Term`: an integer representing the loan term in years. Default is any
+                      
+
+        The response will give echo the filters applied in your request and a full list of product codes. The product codes use naming convention
+          > `[ClientCode]_[LenderCode]_[UsageType]_[RateType]_[RateTerm]_[RepaymentType]`.
+          
+        You can use the response to get detailed product information including:
+         - product title and description
+         - customer rate
+         - comparison rate calculated using any applicable fees and regulated parameters
+         - redraw allowed
+         - additional repayment limits
+         - repayment type (`RepaymentType`)
+         - rate type (`RateType`)
+         - loan usage type (`UsageType`)
+         - roll over rates (if applicable)
+         - rate adjustments (if applicable)
+         - fees (if applicable) - includes amounts, descriptions and frequencies
+
+
+
+        The enumerations for requests and responses are as follows:
+         - `ClientCode`: code provided to you during onboarding
+         - `LenderCode`: code provided to you during onboarding
+         - `UsageType`: see table below
+         - `RateType`: see table below
+         - `RateTerm`: an integer representing a rate term in years
+         - `RepaymentType`: see table below
+
+          
+        The `RateType` is defined as per the table below: 
+        
+          | `RateType` | Description |
+          |-----|-----|
+          | `VAR` | Variable |
+          | `FIX` | Fixed |
+          | `SPL` | Split |
+          
+        The `RepaymentType` is defined as per the table below: 
+        
+          | `RepaymentType` | Description |
+          |-----|-----|
+          | `IO` | Interest Only |
+          | `LOC` | Line of Credit |
+          | `NONE` | None |
+          | `PI` | Principle and Interest |
+          
+        The `AdditionalRepaymentType` is defined as per the table below: 
+        
+          | `UsageType` | Description |
+          |-----|-----|
+          | `FIXED` | Fixed |
+          | `NONE` | None |
+          | `PERCENT` | Percent |
+          | `UNLIMITED` | Unlimited |
+        
+        The `Frequency` is defined as per the table below: 
+        
+          | `Frequency` | Description |
+          |-----|-----|          
+          | `D` | Daily |
+          | `W` | Weekly |
+          | `F` | Fortnightly |
+          | `M` | Monthly | 
+          | `Q` | Quarterly |
+          | `A` | Annually |
+          | `O` | OneOff |
+          | `I` | Irregular |
+          
+      operationId: getProductRate
+      parameters:
+        - in: header
+          name: x-api-key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        description: The JSON request body for the POST.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestGetProductRate'
+        required: true
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseGetProductRate'
+        401:
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+        422:
+          description: Unable to retrieve rates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseRequestError'
+      x-codegen-request-body-name: RequestBody
+ 
+components:
+  schemas:
+    ResponseGetToken:
+      required:
+      - access_token
+      - expires_in
+      - token_type
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Access token linked to Client Id containing user permissions.
+        expires_in:
+          type: number
+          description: Seconds until the token expires.
+        token_type:
+          type: string
+          description: Always "Bearer", with current default of 60 minutes (3,600
+            seconds).
+          enum:
+          - Bearer
+    ResponseGetToken400:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          type: string
+          description: Description of the error.
+          enum:
+          - invalid client
+    ResponseGetToken401:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          type: string
+          description: Description of the error.
+          enum:
+          - unauthorised
+    RequestGetListProductRate: 
+      type: object
+      properties:
+        Filters:
+          type: object
+          description: The filter criteria.
+          properties:
+            IsActive:
+              type: boolean
+              description: Active status for product rates.
+              default: true
+            ProductCodes:
+              type: array
+              description: Product codes of the rates.
+              example: ["TIC_BEN_PRI"]
+              items:
+                type: string
+            Lenders:
+              type: array
+              description: Lenders for product rates.
+              example: ["TIC"]
+              items:
+                type: string
+            RateType:
+              type: string
+              example: FIX
+              description: Rate type for product rates.  
+              enum:
+                - VAR
+                - FIX
+                - SPL
+            RepaymentType:
+              type: string
+              example: IO
+              description: Repayment type for product rates.
+              enum:
+                - IO
+                - LOC
+                - NONE
+                - PI
+            UsageType:
+              type: string
+              example: PRI
+              description: Usage type for product rates.
+              enum:
+                - PRI
+                - INV
+                - IL
+            LoanAmountMin:
+              type: number
+              example: 100000
+              description: Minimum loan amount.
+              default: 0
+            LoanAmountMax:
+              type: number
+              example: 1000000
+              description: Maximum loan amount.
+            LvrMin:
+              type: number
+              example: 0.2
+              description: Minimum loan to value ratio.
+              default: 0.0
+            LvrMax:
+              type: number
+              example: 0.8
+              description: Maximum loan to value ratio.
+              default: 1.0
+            HasOffset:
+              type: boolean
+              description: If the product rates have an Offset.
+              default: true
+            IsRollTo:
+              type: boolean
+              description: If the product rates is a roll-to rate.
+            ContextAt:
+              type: string
+              example: "2022-03-21"
+              description: Date time when product rates received at, If this isn't provided the context at default will be equivalent request time.
+    ResponseGetListProductRate:
+      type: object
+      properties:
+        Filters:
+          type: object
+          description: The filter criteria.
+          properties:
+            IsActive:
+              type: boolean
+              description: Active status for product rates.
+            ProductCodes:
+              type: array
+              description: Product codes of the rates.
+              example: ["TIC_BEN_PRI"]
+              items:
+                type: string
+            Lenders:
+              type: array
+              description: Lenders for product rates.
+              items:
+                type: string
+            RateType:
+              type: string
+              description: Rate type for product rates.  
+              enum:
+                - VAR
+                - FIX
+                - SPL
+            RepaymentType:
+              type: string
+              description: Repayment type for product rates.
+              enum:
+                - IO
+                - LOC
+                - NONE
+                - PI
+            UsageType:
+              type: string
+              description: Usage type for product rates.
+              enum:
+                - PRI
+                - INV
+                - IL
+            LoanAmountMin:
+              type: number
+              description: Minimum loan amount.
+            LoanAmountMax:
+              type: number
+              description: Maximum loan amount.
+            LvrMin:
+              type: number
+              description: Minimum loan to value ratio.
+            LvrMax:
+              type: number
+              description: Maximum loan to value ratio.
+            HasOffset:
+              type: boolean
+              description: If the product rates have an Offset.
+            IsRollTo:
+              type: boolean
+              description: If the product rates is a roll-to rate.
+            ContextAt:
+              type: string
+              description: Date time when product rates received at, If this wasn't provided in the request, context at default will be equivalent request datetime.
+        ProductRateCodes:
+          type: array
+          description: Product rate codes.
+          items:
+            type: string
+        LastUpdated:
+          type: string
+          description: Date time of the most recent change to the returned product rates.
+        RequestId:
+          type: string
+          format: uuid
+          description: Unique request identifier.
+    
+    RequestGetProductRate: 
+      type: object
+      properties:
+        ProductRateCodes:
+          type: array
+          description: The product rate codes.
+          example: ["TIC_BEN_PRI_FIX_1_IO"]
+          items: 
+            type: string
+        Options:
+          type: object
+          description: Options to filter product rate data.
+          properties: 
+            HasOffset:
+              type: boolean
+              description: Has offset or not.
+              default: false
+            LvrMin:
+              type: number
+              description: Minimum loan to value ratio.
+              example: 0.5
+              default: 0.0
+            LvrMax:
+              type: number
+              description: Maximum loan to value ratio.
+              example: 0.5
+              default: 1.0
+            LoanAmountMin:
+              type: number
+              example: 100000
+              description: Minimum loan amount.
+              default: 0
+            LoanAmountMax:
+              type: number
+              example: 1000000
+              description: Maximum loan amount.
+            Term:
+              type: number
+              description: Loan term in years.
+              example: 15
+            IsRollTo:
+              type: boolean
+              description: If the product rates is a roll-to rate.
+            ContextAt:
+              type: string
+              description: Date time when product rates received at.
+    ResponseGetProductRate: 
+      type: object
+      properties:
+        Options:
+          type: object
+          description: Options to filter product rate data.
+          properties: 
+            HasOffset:
+              type: boolean
+              description: Has offset or not.
+            LvrMin:
+              type: number
+              description: Minimum loan to value ratio.
+            LvrMax:
+              type: number
+              description: Maximum loan to value ratio.
+            Term:
+              type: number
+              description: Loan term in years.
+            IsRollTo:
+              type: boolean
+              description: Determines if we need to include roll to rates.
+            LoanAmountMin:
+              type: number
+              description: Minimum loan amount.
+            LoanAmountMax:
+              type: number
+              description: Maximum loan amount.
+            ContextAt:
+              type: string
+              description: Date time when product rates received at.
+        Products:
+          type: array
+          description: List of products.
+          items: 
+            type: object
+            description: Product details.
+            properties: 
+              Code:
+                type: string
+                description: Product code.
+              Lender: 
+                type: string
+                description: Lender of the product.
+              UsageType:
+                type: string
+                description: Property usage type. 
+              Fees: 
+                type: array
+                description: List of product fees.
+                items:
+                  type: object
+                  description: Fee details.
+                  properties: 
+                    Name:
+                      type: string
+                      description: Name.
+                    Value: 
+                      type: string
+                      description: Value.
+                    Frequency:
+                      type: string
+                      description: Frequency.
+                      enum:
+                        - D
+                        - W
+                        - F
+                        - M
+                        - Q
+                        - A
+                        - O
+                        - I
+                    IsOffsetAccountFee:
+                      type: boolean
+                      description: Indicates if this is an offset account fee.
+              ProductRates:
+                type: array
+                items: 
+                  type: object
+                  properties:
+                    Code:
+                      type: string
+                      description: Product rate code.
+                    Title:
+                      type: string
+                      description: Product rate title.
+                    Description:
+                      type: string
+                      description: Product rate description.
+                    Term:
+                      type: number
+                      description: Rate term.
+                    CustomerRate:
+                      type: number
+                      description: Customer rate.
+                    ComparisonRate:
+                      type: number
+                      description: Comparison rate.
+                    RedrawAllowed:
+                      type: boolean
+                      description: Is redraw allowd for the product rate.
+                    RateType:
+                      type: string
+                      description: Rate type.
+                      enum:
+                        - VAR
+                        - FIX
+                        - SPL
+                    RepaymentType:
+                      type: string
+                      description: Repayment type for product rates.
+                      enum:
+                        - IO
+                        - LOC
+                        - NONE
+                        - PI
+                    AdditionalRepayments:
+                      type: object
+                      description: Additional repayment details.
+                      properties:
+                        Type:
+                          type: string
+                          description: Additional repayment type.
+                          enum:
+                            - FIXED
+                            - NONE
+                            - PERCENT
+                            - UNLIMITED
+                        AnnualLimit:
+                          type: number
+                          description: Annual limit.
+                    Rollover:
+                      type: object
+                      description: Rollover rate associated with product rate.
+                      properties:
+                        ProductRateCode:
+                          type: string
+                          description: Rollover product rate code.
+                        CustomerRate:
+                          type: number
+                          description: Roll over customer rate.
+                    RateAdjustment:
+                      type: object
+                      description: Rate adjustment associated with product rate.
+                      properties:
+                        LvrMin:
+                          type: number
+                          description: Minimum loan to value ratio.
+                        LvrMax:
+                          type: number
+                          description: Maximum loan to value ratio.
+                        LoanAmountMin:
+                          type: number
+                          description: Minimum loan amount.
+                        LoanAmountMax:
+                          type: number
+                          description: Minimum loan amount.
+                    IsRollTo:
+                      type: boolean
+                      description: Is roll to rate.
+                    ActiveFrom:
+                      type: string
+                      description: Date time when product rates is active from.
+                    ActiveTo:
+                      type: string
+                      description: Date time product rate is active to.
+  
+    ResponseRequestError:
+      required:
+      - Errors
+      - HasErrors
+      - RequestId
+      type: object
+      properties:
+        Errors:
+          type: array
+          description: Description of error(s).
+          items:
+            type: object
+            properties:
+              ErrorCode:
+                type: string
+                description: The error type code.
+                enum:
+                  - ERR001
+              ErrorType:
+                type: string
+                description: The error type.
+                enum:
+                  - Generic
+              Code:
+                type: string
+                description: The message type code.
+                enum:
+                  - Error
+              Message:
+                type: string
+                description: The error message.
+        HasErrors:
+          type: boolean
+          description: Boolean indicator as to whether the response indicates errors.
+        RequestId:
+          type: string
+          description: 'Unique identifier for the request that generated the error.     '
+          format: uuid
+  securitySchemes:
+    tokenAuth:
+      type: http
+      scheme: basic
+    apiAuth: 
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+security:
+- apiAuth: []
+- apiKeyAuth: []
