@@ -7,25 +7,23 @@ info:
     altText: "tic:toc Enterprise logo"
   description:   >-
 
-    [Tic:Toc Enterprise](https://tictoc.ai) provides our platform partners with an easy way to access your product information.
-      
-    To get access to this API please contact your [account manager](mailto:enterprise@tictoc.ai).
-      
+    [Tic:Toc Enterprise](https://tictoc.ai) provides our platform partners with an easy way to access your home loan product information.
+            
     ## Getting Started  
     
     Integrating the Product API is easy. You'll need the following:
       - your test API client credentials. These will be provided to you by Tic:Toc, and must be stored securely
       - start developing using our test environment. This will allow you to get familiar with the request and response models through this documentation or embedded in your own customer experiences
-      - your production API client credentials. These will be provided to you by Tic:Toc, and must be stored securely
-      - go live!
+      - your production API client credentials. These will be provided to you by Tic:Toc - keep them safe!
       
-    
+    To get access to this API please contact your [account manager](mailto:enterprise@tictoc.ai).
+
     ## The API Orchestration
     
     To get API is structured as follows:
       - authenticate: first you must get a [`token`](#/token) to allow all calls to be authenticated
-      - get a list of product: get a list of product codes using optional filters from [`/product/rate/getlist`](#/product/rate/getlist). All calls must include a [`token`](#/token) and the `x-api-key` header.
-      - get product details: once you have your target product codes, then call the [`/product/rate/get`](#/product/rate/get) endpoint to get detailed product information such as rates, periods, repayment types and fees. All calls must include a [`token`](#/token) and the `x-api-key` header.
+      - get a list of products: get a list of product codes using optional filters from [`/product/rate/getlist`](#/product/rate/getlist). All calls must include a [`token`](#/token) and the `x-api-key` header
+      - get product details: once you have your target product codes, call the [`/product/rate/get`](#/product/rate/get) endpoint to get detailed product information such as rates, periods, repayment types and fees. All calls must include a [`token`](#/token) and the `x-api-key` header.
        
     You can also download a [Postman Collection](https://github.com/TicTocHomeLoans/XAIValidateApiPublic/raw/main/XAI%20Validate%20API%20Collection.postman_collection.json) to help you interact with the Product API.
       
@@ -122,14 +120,13 @@ paths:
         You can provide the following optional filters. If filters are not defined it will return all the available product rates:  
           - `ProductCodes`: product group code described as `[ClientCode]_[LenderCode]_[UsageType]` - default is all
           - `LenderCode`: relevant to clients with multiple lenders - default is all
-          - `RateType`": see table below for enumerations - default is all
+          - `RateType`: see table below for enumerations - default is all
           - `RepaymentType`: see table below for enumerations - default is all
           - `UsageType`: see table below for enumerations - default is all
           - `LoanAmountMin`: the minimum loan amount applicable to the product. The default is `0`  
           - `LoanAmountMax`: the maximum loan amount applicable to the product. The default is `999,999,999`  
           - `LvrMin`: the minimum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `0.0`  
           - `LvrMax`: the maximum LVR band applicable to the product. The value is a decimal between `0` and `1`, with the default `1.0`  
-          - `IsActive`: a boolean value indicating whether the product is still on offer. The default is `all`  
           - `HasOffset`: a boolean value indicating whether the product can have an offset account attached. The default is `false`  
           - `IsRollTo`: a boolean value indicating whether the product rate is a rate that customers move to after a fixed or interest only period
           - `ContextAt`: a `date-time` value to query active rates. The default is current Australian Eastern Standard Time.  
@@ -153,14 +150,12 @@ paths:
           |-----|-----|
           | `VAR` | Variable |
           | `FIX` | Fixed |
-          | `SPL` | Split |
           
         The `RepaymentType` is defined as per the table below: 
         
           | `RepaymentType` | Description |
           |-----|-----|
           | `IO` | Interest Only |
-          | `LOC` | Line of Credit |
           | `NONE` | None |
           | `PI` | Principal and Interest |
           
@@ -258,14 +253,12 @@ paths:
           |-----|-----|
           | `VAR` | Variable |
           | `FIX` | Fixed |
-          | `SPL` | Split |
           
         The `RepaymentType` is defined as per the table below: 
         
           | `RepaymentType` | Description |
           |-----|-----|
           | `IO` | Interest Only |
-          | `LOC` | Line of Credit |
           | `NONE` | None |
           | `PI` | Principle and Interest |
           
@@ -397,14 +390,12 @@ components:
               enum:
                 - VAR
                 - FIX
-                - SPL
             RepaymentType:
               type: string
               example: IO
               description: Repayment type for product rates.
               enum:
                 - IO
-                - LOC
                 - NONE
                 - PI
             UsageType:
@@ -472,13 +463,11 @@ components:
               enum:
                 - VAR
                 - FIX
-                - SPL
             RepaymentType:
               type: string
               description: Repayment type for product rates.
               enum:
                 - IO
-                - LOC
                 - NONE
                 - PI
             UsageType:
@@ -675,13 +664,11 @@ components:
                       enum:
                         - VAR
                         - FIX
-                        - SPL
                     RepaymentType:
                       type: string
                       description: Repayment type for product rates.
                       enum:
                         - IO
-                        - LOC
                         - NONE
                         - PI
                     AdditionalRepayments:
