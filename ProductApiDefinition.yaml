@@ -508,7 +508,7 @@ components:
           description: Date time of the most recent change to the returned product rates.
         RequestId:
           type: string
-          format: uuid
+          example: RojLCjD-ywPPMNg=
           description: Unique request identifier.
     
     RequestGetProductRate: 
@@ -759,7 +759,7 @@ components:
         RequestId:
           type: string
           description: 'Unique identifier for the request that generated the error.     '
-          format: uuid
+          example: RojLCjD-ywPPMNg=
   securitySchemes:
     tokenAuth:
       type: http
