@@ -50,7 +50,7 @@ paths:
       - url: https://auth.tictoc.ai/oauth2
         description: Production authorisation server
       description: >-
-        Before you can call the XAI Validate endpoints, you need to authenticate via the `/token` API. Successful authentication will return a token that can then be used to authorise your access to functional APIs. You'll need to include this token in the `Authorization` header in your calls.
+        Before you can call the Xapii endpoints, you need to authenticate via the `/token` API. Successful authentication will return a token that can then be used to authorise your access to functional APIs. You'll need to include this token in the `Authorization` header in your calls.
           
         The `/token` API URL includes values in the query path. The URL will look like this:        
           `https://{host}/oauth2/token?grant_type=client_credentials`
@@ -58,7 +58,7 @@ paths:
         The `host` value will either be `auth.tictoc.ai` for production or `auth.stage.tictoc.ai` for testing.
 
         You'll also need to include information in your headers:
-          - `Authorization`: Base64 encoded `client_id` and `client_secret` provided to you by the XAI Validate team as part of onboarding. The format is: `"Basic {client_id}:{client_secret}"`
+          - `Authorization`: Base64 encoded `client_id` and `client_secret` provided to you by the Xapii team as part of onboarding. The format is: `"Basic {client_id}:{client_secret}"`
           - `Content-Type`: the value is `"application/x-www-form-urlencoded"`
 
         **Remember, your API credentials must be kept safe and secure. Do not share these or publish to publicly accessible locations such as your client-side code or GitHub.**
